@@ -1,0 +1,130 @@
+# =============================================================================
+# Hydra-Map Global Configuration
+# =============================================================================
+
+project:
+  name: hydra-map
+  description: "SVAMITVA Village Mapping MVP"
+
+# --- Data Layout ---
+data:
+  raw_dir: "data/raw"
+  pointcloud_dir: "data/pointcloud"
+  meta_dir: "data/meta"
+  dem_dir: "data/dem"
+  preprocessed_dir: "data/clean_dataset_2"
+  annotations_dir: "data/annotations"
+  annotations_archive: "data/annotations/archive"
+  models_dir: "models"
+  output_dir: "output"
+
+# --- Preprocessing ---
+preprocess:
+  v_global_thresh: 12
+  v_local_thresh: 6
+  local_window_size: 50
+  tile_sizes: [512, 640]
+  stride: 256
+  output_format: "png"    # png or npy
+
+# --- Swin-UNet ---
+swin:
+  encoder: "swin_tiny_patch4_window7_224"
+  pretrained: true
+  num_classes: 6
+  class_names:
+    - background
+    - building
+    - road
+    - vegetation
+    - water
+    - other
+    # Future roof sub-classes (requires re-training):
+    # - rcc_roof      # Reinforced Cement Concrete
+    # - tin_roof      # Corrugated tin/metal
+    # - tiled_roof    # Traditional clay tiles
+  input_size: 512
+  batch_size: 4
+  freeze_epochs: 10
+  unfreeze_epochs: 10
+  lr_freeze: 1.0e-4
+  lr_finetune: 1.0e-5
+  weight_decay: 1.0e-4
+  scheduler: "cosine"
+  loss: "dice_ce"          # dice_ce hybrid
+  fold_k: 5
+  pseudo_label_threshold: 0.85
+  pseudo_label_weight: 0.5
+
+# --- YOLO ---
+yolo:
+  model: "yolov8n.pt"
+  input_size: 640
+  confidence_threshold: 0.25
+  iou_threshold: 0.45
+  max_detections: 300
+
+# --- GeoSAM ---
+geosam:
+  checkpoint: "models/sam_vit_h.pth"
+  model_type: "vit_h"
+  use_lora: false
+  lora_rank: 4
+
+# --- Depth ---
+depth:
+  source: "auto"           # auto | las | dsm_dtm | none
+  use_depth_pro: true      # Apple DepthPro enabled (weights in checkpoints/depth_pro.pt)
+  dsm_suffix: "_dsm.tif"
+  dtm_suffix: "_dtm.tif"
+
+# --- Fusion Model (Learned Orchestrator) ---
+fusion:
+  arch: "mlp"              # mlp | transformer
+  swin_feature_dim: 768
+  yolo_max_detections: 10
+  yolo_feature_dim: 6      # x,y,w,h,conf,cls per detection
+  depth_feature_dim: 3     # z_mean, z_median, z_std
+  mask_stats_dim: 4        # area, perimeter, confidence, num_components
+  hidden_dims: [128, 64]
+  dropout: 0.3
+  num_classes: 6
+  batch_size: 64
+  lr: 1.0e-3
+  epochs: 50
+  early_stopping_patience: 7
+  fold_k: 5
+
+# --- Inference ---
+inference:
+  batch_size: 4
+  debug: false
+  cpu_only: false
+  geosam_top_k: 5          # max candidates for GeoSAM refinement
+
+# --- Export ---
+export:
+  simplify_tolerance: 0.5
+  cog_tile_size: 256
+  cog_compression: "LZW"
+  min_polygon_area: 10.0   # sq meters — discard tiny fragments
+
+# --- ONNX ---
+onnx:
+  quantize: true
+  opset_version: 17
+
+# --- Observability ---
+observability:
+  use_wandb: false
+  wandb_project: "hydra-map"
+  log_diagnostics: true
+
+# --- Augmentation ---
+augmentation:
+  use_cutmix: true
+  cutmix_alpha: 1.0
+  use_mixup: true
+  mixup_alpha: 0.4
+  use_copy_paste: true
+  heavy_augs: true         # RandomRotate90, CLAHE, MotionBlur, etc.

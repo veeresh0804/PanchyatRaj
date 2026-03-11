@@ -1,0 +1,104 @@
+# =============================================================================
+# Small Local Test Configuration — Single-tile smoke test
+# =============================================================================
+
+project:
+  name: hydra-map-test
+
+data:
+  raw_dir: "data/raw"
+  pointcloud_dir: "data/pointcloud"
+  meta_dir: "data/meta"
+  dem_dir: "data/dem"
+  preprocessed_dir: "data/preprocessed"
+  annotations_dir: "data/annotations"
+  annotations_archive: "data/annotations/archive"
+  models_dir: "models"
+  output_dir: "output"
+
+preprocess:
+  v_global_thresh: 5       # lower for synthetic data
+  v_local_thresh: 3
+  local_window_size: 50
+  tile_sizes: [512]
+  stride: 256
+  output_format: "png"
+
+swin:
+  encoder: "swin_tiny_patch4_window7_224"
+  pretrained: false         # no download for test
+  num_classes: 6
+  class_names: [background, building, road, vegetation, water, other]
+  input_size: 512
+  batch_size: 1
+  freeze_epochs: 1
+  unfreeze_epochs: 1
+  lr_freeze: 1.0e-4
+  lr_finetune: 1.0e-5
+  weight_decay: 1.0e-4
+  scheduler: "cosine"
+  loss: "dice_ce"
+  fold_k: 2
+  pseudo_label_threshold: 0.85
+  pseudo_label_weight: 0.5
+
+yolo:
+  model: "yolov8n.pt"
+  input_size: 640
+  confidence_threshold: 0.1
+  iou_threshold: 0.45
+  max_detections: 50
+
+geosam:
+  checkpoint: "models/sam_vit_h.pth"
+  model_type: "vit_h"
+  use_lora: false
+  lora_rank: 4
+
+depth:
+  source: "none"
+
+fusion:
+  arch: "mlp"
+  swin_feature_dim: 768
+  yolo_max_detections: 10
+  yolo_feature_dim: 6
+  depth_feature_dim: 3
+  mask_stats_dim: 4
+  hidden_dims: [64, 32]
+  dropout: 0.1
+  num_classes: 6
+  batch_size: 8
+  lr: 1.0e-3
+  epochs: 5
+  early_stopping_patience: 3
+  fold_k: 2
+
+inference:
+  batch_size: 1
+  debug: true
+  cpu_only: true
+  geosam_top_k: 2
+
+export:
+  simplify_tolerance: 1.0
+  cog_tile_size: 256
+  cog_compression: "LZW"
+  min_polygon_area: 5.0
+
+onnx:
+  quantize: false
+  opset_version: 17
+
+observability:
+  use_wandb: false
+  wandb_project: "hydra-map-test"
+  log_diagnostics: true
+
+augmentation:
+  use_cutmix: false
+  cutmix_alpha: 1.0
+  use_mixup: false
+  mixup_alpha: 0.4
+  use_copy_paste: false
+  heavy_augs: false

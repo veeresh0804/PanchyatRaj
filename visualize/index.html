@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hydra-Map Dashboard</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div class="app-wrapper">
+        <!-- Top Command Bar -->
+        <header class="top-command-bar">
+            <div class="logo">Hydra-Map</div>
+            <nav class="top-nav">
+                <span>Dataset</span>
+                <span>Layers</span>
+                <span>Pipeline</span>
+                <span>Export</span>
+            </nav>
+        </header>
+
+        <div class="dashboard-container">
+            <!-- Sidebar Navigation -->
+            <aside class="sidebar">
+                <nav>
+                    <div class="nav-section">
+                        <h4>Data</h4>
+                        <ul>
+                            <li class="active" data-tab="map-view"><i class="icon">🗺️</i> Map View</li>
+                            <li data-tab="tile-index"><i class="icon">🗂️</i> Tile Index</li>
+                            <li data-tab="dataset"><i class="icon">📀</i> Dataset</li>
+                        </ul>
+                    </div>
+                    <div class="nav-section">
+                        <h4>Analysis</h4>
+                        <ul>
+                            <li data-tab="metrics-view"><i class="icon">📊</i> Metrics</li>
+                            <li data-tab="model-output"><i class="icon">🔍</i> Model Output</li>
+                            <li data-tab="detection-layers"><i class="icon">🎛️</i> Detection Layers</li>
+                        </ul>
+                    </div>
+                    <div class="nav-section">
+                        <h4>Pipeline</h4>
+                        <ul>
+                            <li data-tab="run-pipeline"><i class="icon">▶️</i> Run Pipeline</li>
+                            <li data-tab="export-results"><i class="icon">💾</i> Export Results</li>
+                        </ul>
+                    </div>
+                </nav>
+                <div class="run-info" id="run-info-card">
+                    <h3>Run Details</h3>
+                    <p>Run ID: <span id="run-id-display">Loading...</span></p>
+                    <p>Tiles: <span id="tile-count-display">0</span></p>
+                    <p style="margin-top: 10px; font-size: 0.85em; color: #888;">Model: <strong
+                            id="model-version-display">Unknown</strong></p>
+                </div>
+            </aside>
+
+            <!-- Main Content Area -->
+            <main class="content-area">
+
+                <!-- Map View Tab -->
+                <section id="map-view" class="tab-content active">
+                    <div class="map-container">
+                        <div id="map"></div>
+
+                        <!-- Map Toolbar -->
+                        <div class="map-toolbar">
+                            <button title="Zoom In" onclick="map.zoomIn()">➕</button>
+                            <button title="Zoom Out" onclick="map.zoomOut()">➖</button>
+                            <button title="Measure" onclick="alert('Measure tool activated')">📏</button>
+                            <button title="Toggle Grid" onclick="alert('Grid overlay toggled')">🕸️</button>
+                            <button title="Export" onclick="alert('Exporting current view...')">💾</button>
+                        </div>
+
+                        <!-- Class Filter Control -->
+                        <div class="map-controls">
+                            <h3>Classes <button id="replay-btn" onclick="renderMapPolygons()">Replay Pipeline</button>
+                            </h3>
+                            <div class="legend" id="class-legend">
+                                <!-- Populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tile Inspector Panel -->
+                    <div class="inspector-panel collapsed" id="inspector-panel">
+                        <div class="inspector-header">
+                            <h3 id="inspector-title">Tile Inspector</h3>
+                            <button id="close-inspector">✕</button>
+                        </div>
+                        <div class="inspector-content">
+                            <p class="placeholder-text" id="inspector-placeholder">Click a tile on the map to inspect
+                                details.</p>
+
+                            <div id="inspector-details" class="hidden">
+                                <div class="tile-preview">
+                                    <img id="inspect-original-img" src="" alt="Original Tile">
+                                </div>
+
+                                <div class="inspector-section">
+                                    <h4>Tile Metadata</h4>
+                                    <ul>
+                                        <li><span>Tile ID</span> <span class="data-value" id="inspect-meta-id"
+                                                style="font-size: 0.75rem;">...</span></li>
+                                        <li><span>Resolution</span> <span class="data-value">512x512</span></li>
+                                    </ul>
+                                </div>
+
+                                <div class="inspector-section">
+                                    <h4>Model Output</h4>
+                                    <ul>
+                                        <li><span>Swin-UNet Conf</span> <span class="data-value"
+                                                id="inspect-swin-conf">N/A</span></li>
+                                        <li><span>YOLO Objects</span> <span class="data-value"
+                                                id="inspect-yolo-count">0</span></li>
+                                        <li><span>YOLO Max Conf</span> <span class="data-value"
+                                                id="inspect-yolo-conf">N/A</span></li>
+                                        <li><span>Depth Estimate</span> <span class="data-value"><span
+                                                    id="inspect-depth">N/A</span> m</span></li>
+                                    </ul>
+                                </div>
+
+                                <div class="inspector-section">
+                                    <h4>Fusion Result</h4>
+                                    <div id="inspect-fusion-features">
+                                        <!-- Dynamic class distributions injected here -->
+                                        <div class="decision-card">
+                                            <p><span>Class</span> <strong id="inspect-final-class">Unknown</strong></p>
+                                            <p><span>Confidence</span> <strong id="inspect-final-conf">0%</strong></p>
+                                            <div class="progress-bar">
+                                                <div id="inspect-conf-bar" class="fill" style="width: 0%"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p class="action" id="inspect-action-text"
+                                        style="margin-top: 10px; font-weight: 500;">Action: Accepted</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Metrics View Tab -->
+                <section id="metrics-view" class="tab-content hidden">
+                    <header class="section-header">
+                        <h2>Pipeline Metrics</h2>
+                        <p>Performance analysis for run: <strong id="metrics-run-id">demo01</strong></p>
+                    </header>
+
+                    <div class="metrics-grid">
+                        <div class="metric-card summary-card">
+                            <h3>Processing Time</h3>
+                            <p class="value" id="metric-time">0.0s</p>
+                            <p class="label">Total duration</p>
+                        </div>
+                        <div class="metric-card summary-card">
+                            <h3>Tiles Processed</h3>
+                            <p class="value" id="metric-tiles">0</p>
+                            <p class="label">Total</p>
+                        </div>
+                        <div class="metric-card summary-card">
+                            <h3>Avg Confidence</h3>
+                            <p class="value" id="metric-conf">0%</p>
+                            <p class="label">Overall</p>
+                        </div>
+
+                        <div class="metric-card chart-card large">
+                            <h3>Class Distribution</h3>
+                            <canvas id="classDistChart"></canvas>
+                        </div>
+
+                        <div class="metric-card chart-card large">
+                            <h3>Confidence Timeline</h3>
+                            <canvas id="confTimelineChart"></canvas>
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="js/app.js"></script>
+    <script src="js/charts.js"></script>
+</body>
+
+</html>

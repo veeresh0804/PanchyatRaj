@@ -1,0 +1,125 @@
+# =============================================================================
+# Hydra-Map Small Config — CPU-friendly for demo/testing
+# =============================================================================
+
+project:
+  name: hydra-map-demo
+  description: "SVAMITVA Village Mapping — Small Training Config"
+
+# --- Data Layout ---
+data:
+  raw_dir: "data/raw"
+  pointcloud_dir: "data/pointcloud"
+  meta_dir: "data/meta"
+  dem_dir: "data/dem"
+  preprocessed_dir: "data/preprocessed"
+  annotations_dir: "data/annotations"
+  annotations_archive: "data/annotations/archive"
+  models_dir: "models"
+  output_dir: "output"
+
+# --- Preprocessing ---
+preprocess:
+  v_global_thresh: 10
+  v_local_thresh: 5
+  local_window_size: 50
+  tile_sizes: [512]         # Single size for speed
+  stride: 512               # No overlap for speed
+  output_format: "png"
+
+# --- Swin-UNet ---
+swin:
+  encoder: "swin_tiny_patch4_window7_224"
+  pretrained: false
+  num_classes: 6
+  class_names:
+    - background
+    - building
+    - road
+    - vegetation
+    - water
+    - other
+  class_weights: [0.1, 2.5, 1.5, 1.2, 1.0, 1.0] # Downweight background, upweight buildings
+  use_focal: true # Use Focal Loss to focus on hard, sparse classes
+  input_size: 512
+  batch_size: 8
+  freeze_epochs: 40
+  unfreeze_epochs: 40
+  lr_freeze: 3.0e-4
+  lr_finetune: 1.0e-4
+  weight_decay: 1.0e-4
+  building_tile_oversampling: true
+  scheduler: "cosine"
+  loss: "dice_ce"
+  fold_k: 2
+  pseudo_label_threshold: 0
+  pseudo_label_weight: 0
+
+# --- YOLO ---
+yolo:
+  model: "yolov8n.pt"
+  input_size: 640
+  confidence_threshold: 0.25
+  iou_threshold: 0.45
+  max_detections: 300
+
+# --- GeoSAM ---
+geosam:
+  checkpoint: "models/sam_vit_h.pth"
+  model_type: "vit_h"
+  use_lora: false
+  lora_rank: 4
+
+# --- Depth ---
+depth:
+  source: "none"
+
+# --- Fusion Model ---
+fusion:
+  arch: "mlp"
+  swin_feature_dim: 768
+  yolo_max_detections: 10
+  yolo_feature_dim: 6
+  depth_feature_dim: 3
+  mask_stats_dim: 4
+  hidden_dims: [128, 64]
+  dropout: 0.3
+  num_classes: 6
+  batch_size: 32
+  lr: 1.0e-3
+  epochs: 10
+  early_stopping_patience: 3
+  fold_k: 2
+
+# --- Inference ---
+inference:
+  batch_size: 1
+  debug: false
+  cpu_only: false
+  geosam_top_k: 2
+
+# --- Export ---
+export:
+  simplify_tolerance: 0.5
+  cog_tile_size: 256
+  cog_compression: "LZW"
+  min_polygon_area: 10.0
+
+# --- ONNX ---
+onnx:
+  quantize: false
+  opset_version: 17
+
+# --- Observability ---
+observability:
+  use_wandb: false
+  log_diagnostics: true
+
+# --- Augmentation ---
+augmentation:
+  use_cutmix: true
+  cutmix_alpha: 1.0
+  use_mixup: true
+  mixup_alpha: 0.4
+  use_copy_paste: false
+  heavy_augs: true
