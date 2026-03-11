@@ -1,0 +1,43 @@
+# =============================================================================
+# Hydra-Map Large Scale Dataset Configuration (CG_450163)
+# =============================================================================
+
+project:
+  name: hydra-map-samlur
+  description: "Large scale inference for SAMLUR village"
+
+# --- Data Layout ---
+data:
+  raw_dir: "data/new/CG_450163"
+  preprocessed_dir: "data/preprocessed_samlur"
+  annotations_dir: "data/annotations_samlur"
+  models_dir: "models"
+  output_dir: "output/samlur"
+
+# --- Preprocessing ---
+preprocess:
+  v_global_thresh: 12
+  v_local_thresh: 6
+  local_window_size: 50
+  tile_sizes: [512]
+  stride: 448             # 512 - 64 (overlap)
+  output_format: "png"
+
+# --- Inference ---
+inference:
+  batch_size: 16          # Increased for high-speed performance
+  debug: false
+  cpu_only: false
+  geosam_top_k: 5
+
+# --- Depth ---
+depth:
+  enabled: true
+  use_depth_pro: true
+
+# --- Models (Pointing to existing weights if available) ---
+swin:
+  num_classes: 6
+  input_size: 512
+yolo:
+  model: "models/yolov8n.pt"

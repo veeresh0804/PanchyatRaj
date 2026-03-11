@@ -1,198 +1,223 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hydra-Map Dashboard</title>
+    <title>Hydra-Map Control Center</title>
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
 </head>
-
-<body>
+<body class="dark-theme">
     <div class="app-wrapper">
         <!-- Top Command Bar -->
         <header class="top-command-bar">
-            <div class="logo">Hydra-Map</div>
+            <div class="logo">
+                <i class="fa-solid fa-layer-group"></i> HYDRA CONTROL CENTER
+            </div>
             <nav class="top-nav">
-                <span>Dataset</span>
-                <span>Layers</span>
-                <span>Pipeline</span>
-                <span>Export</span>
+                <span class="active"><i class="fa-solid fa-earth-asia"></i> Geospatial View</span>
+                <span><i class="fa-solid fa-satellite-dish"></i> Telemetry</span>
+                <span><i class="fa-solid fa-server"></i> System Nodes</span>
+                <span><i class="fa-solid fa-shield-halved"></i> Audit Logs</span>
             </nav>
+            <div class="user-status">
+                <span class="status-indicator online"></span>
+                <span>SYSTEM ONLINE</span>
+            </div>
         </header>
 
         <div class="dashboard-container">
-            <!-- Sidebar Navigation -->
+            <!-- Left Sidebar Navigation -->
             <aside class="sidebar">
-                <nav>
-                    <div class="nav-section">
-                        <h4>Data</h4>
-                        <ul>
-                            <li class="active" data-tab="map-view"><i class="icon">🗺️</i> Map View</li>
-                            <li data-tab="tile-index"><i class="icon">🗂️</i> Tile Index</li>
-                            <li data-tab="dataset"><i class="icon">📀</i> Dataset</li>
-                        </ul>
+                <div class="panel-section">
+                    <h3><i class="fa-solid fa-database"></i> Datasets</h3>
+                    <select id="dataset-select" class="dark-input">
+                        <option value="Demo_01">Village_Demo_01</option>
+                        <option value="SAMLUR_450163">Village_SAMLUR_450163</option>
+                        <option value="Village_02">Village_02_Orthophoto</option>
+                        <option value="Village_03">Village_03_Urban</option>
+                    </select>
+                </div>
+
+                <div class="panel-section">
+                    <h3><i class="fa-solid fa-sliders"></i> Pipeline Parameters</h3>
+                    <div class="form-group">
+                        <label>Tile Size (px)</label>
+                        <input type="number" id="tile-size" class="dark-input" value="512">
                     </div>
-                    <div class="nav-section">
-                        <h4>Analysis</h4>
-                        <ul>
-                            <li data-tab="metrics-view"><i class="icon">📊</i> Metrics</li>
-                            <li data-tab="model-output"><i class="icon">🔍</i> Model Output</li>
-                            <li data-tab="detection-layers"><i class="icon">🎛️</i> Detection Layers</li>
-                        </ul>
+                    <div class="form-group">
+                        <label>Overlap (px)</label>
+                        <input type="number" id="overlap" class="dark-input" value="64">
                     </div>
-                    <div class="nav-section">
-                        <h4>Pipeline</h4>
-                        <ul>
-                            <li data-tab="run-pipeline"><i class="icon">▶️</i> Run Pipeline</li>
-                            <li data-tab="export-results"><i class="icon">💾</i> Export Results</li>
-                        </ul>
+                </div>
+
+                <div class="panel-section">
+                    <h3><i class="fa-solid fa-microchip"></i> Active Models</h3>
+                    <div class="checklist">
+                        <label class="check-item"><input type="checkbox" checked disabled> Swin-UNet (Segmentation)</label>
+                        <label class="check-item"><input type="checkbox" checked disabled> YOLOv8 (Detection)</label>
+                        <label class="check-item"><input type="checkbox" checked disabled> Fusion Engine (MLP)</label>
+                        <label class="check-item"><input type="checkbox" id="depth-toggle" checked> Depth Validation</label>
+                        <label class="check-item"><input type="checkbox" id="geosam-toggle"> GeoSAM Refinement</label>
                     </div>
-                </nav>
-                <div class="run-info" id="run-info-card">
-                    <h3>Run Details</h3>
-                    <p>Run ID: <span id="run-id-display">Loading...</span></p>
-                    <p>Tiles: <span id="tile-count-display">0</span></p>
-                    <p style="margin-top: 10px; font-size: 0.85em; color: #888;">Model: <strong
-                            id="model-version-display">Unknown</strong></p>
+                </div>
+
+                <div class="run-action">
+                    <button class="btn-primary" id="run-pipeline-btn" onclick="runHydra()">
+                        <i class="fa-solid fa-bolt"></i> RUN PIPELINE
+                    </button>
+                    <div id="pipeline-status" class="status-text hidden">Initializing workers...</div>
                 </div>
             </aside>
 
             <!-- Main Content Area -->
             <main class="content-area">
+                <!-- Top Main: Map -->
+                <section class="map-section panel">
+                    <div id="map"></div>
 
-                <!-- Map View Tab -->
-                <section id="map-view" class="tab-content active">
-                    <div class="map-container">
-                        <div id="map"></div>
-
-                        <!-- Map Toolbar -->
-                        <div class="map-toolbar">
-                            <button title="Zoom In" onclick="map.zoomIn()">➕</button>
-                            <button title="Zoom Out" onclick="map.zoomOut()">➖</button>
-                            <button title="Measure" onclick="alert('Measure tool activated')">📏</button>
-                            <button title="Toggle Grid" onclick="alert('Grid overlay toggled')">🕸️</button>
-                            <button title="Export" onclick="alert('Exporting current view...')">💾</button>
-                        </div>
-
-                        <!-- Class Filter Control -->
-                        <div class="map-controls">
-                            <h3>Classes <button id="replay-btn" onclick="renderMapPolygons()">Replay Pipeline</button>
-                            </h3>
-                            <div class="legend" id="class-legend">
-                                <!-- Populated by JS -->
-                            </div>
-                        </div>
+                    <!-- Floating Map Toolbar -->
+                    <div class="map-toolbar">
+                        <button title="Zoom In" onclick="map.zoomIn()"><i class="fa-solid fa-plus"></i></button>
+                        <button title="Zoom Out" onclick="map.zoomOut()"><i class="fa-solid fa-minus"></i></button>
+                        <button title="Recenter"><i class="fa-solid fa-crosshairs"></i></button>
+                        <button title="3D View (Beta)" onclick="toggle3DView()"><i class="fa-brands fa-unity"></i></button>
                     </div>
 
-                    <!-- Tile Inspector Panel -->
-                    <div class="inspector-panel collapsed" id="inspector-panel">
-                        <div class="inspector-header">
-                            <h3 id="inspector-title">Tile Inspector</h3>
-                            <button id="close-inspector">✕</button>
+                    <!-- Detection Layers Overlay -->
+                    <div class="detection-layers">
+                        <h4><i class="fa-solid fa-layer-group"></i> Layer Controls</h4>
+                        <div class="layer-toggles">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="layer-swin" checked>
+                                <span class="slider"></span>
+                                <span class="label-text">Swin Segments</span>
+                            </label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="layer-yolo" checked>
+                                <span class="slider"></span>
+                                <span class="label-text">YOLO Boxes</span>
+                            </label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="layer-fusion" checked>
+                                <span class="slider"></span>
+                                <span class="label-text">Fusion Polygons</span>
+                            </label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="layer-depth">
+                                <span class="slider"></span>
+                                <span class="label-text">Depth Anomalies</span>
+                            </label>
                         </div>
-                        <div class="inspector-content">
-                            <p class="placeholder-text" id="inspector-placeholder">Click a tile on the map to inspect
-                                details.</p>
+                    </div>
+                </section>
 
+                <!-- Bottom Layout: Inspector & Metrics -->
+                <section class="bottom-panels">
+                    
+                    <!-- Tile Inspector -->
+                    <div class="panel inspector-panel">
+                        <div class="panel-header">
+                            <h3><i class="fa-solid fa-microscope"></i> Tile Inspector</h3>
+                        </div>
+                        <div class="panel-body inspector-body">
+                            <div id="inspector-placeholder" class="placeholder">
+                                <i class="fa-regular fa-hand-pointer"></i>
+                                <p>Select a tile on the map</p>
+                            </div>
+                            
                             <div id="inspector-details" class="hidden">
-                                <div class="tile-preview">
-                                    <img id="inspect-original-img" src="" alt="Original Tile">
-                                </div>
-
-                                <div class="inspector-section">
-                                    <h4>Tile Metadata</h4>
-                                    <ul>
-                                        <li><span>Tile ID</span> <span class="data-value" id="inspect-meta-id"
-                                                style="font-size: 0.75rem;">...</span></li>
-                                        <li><span>Resolution</span> <span class="data-value">512x512</span></li>
-                                    </ul>
-                                </div>
-
-                                <div class="inspector-section">
-                                    <h4>Model Output</h4>
-                                    <ul>
-                                        <li><span>Swin-UNet Conf</span> <span class="data-value"
-                                                id="inspect-swin-conf">N/A</span></li>
-                                        <li><span>YOLO Objects</span> <span class="data-value"
-                                                id="inspect-yolo-count">0</span></li>
-                                        <li><span>YOLO Max Conf</span> <span class="data-value"
-                                                id="inspect-yolo-conf">N/A</span></li>
-                                        <li><span>Depth Estimate</span> <span class="data-value"><span
-                                                    id="inspect-depth">N/A</span> m</span></li>
-                                    </ul>
-                                </div>
-
-                                <div class="inspector-section">
-                                    <h4>Fusion Result</h4>
-                                    <div id="inspect-fusion-features">
-                                        <!-- Dynamic class distributions injected here -->
-                                        <div class="decision-card">
-                                            <p><span>Class</span> <strong id="inspect-final-class">Unknown</strong></p>
-                                            <p><span>Confidence</span> <strong id="inspect-final-conf">0%</strong></p>
-                                            <div class="progress-bar">
-                                                <div id="inspect-conf-bar" class="fill" style="width: 0%"></div>
+                                <div class="inspector-grid">
+                                    <div class="inspector-col">
+                                        <div class="tile-preview">
+                                            <img id="inspect-original-img" src="" alt="Tile Image">
+                                        </div>
+                                        <div class="meta-data-line">ID: <span id="inspect-meta-id" class="code-font">--</span></div>
+                                    </div>
+                                    <div class="inspector-col data-col">
+                                        <div class="data-block">
+                                            <h4>Model Output</h4>
+                                            <div class="data-row"><span>Swin Conf</span> <strong id="inspect-swin-conf">--</strong></div>
+                                            <div class="data-row"><span>YOLO Detections</span> <strong id="inspect-yolo-count">--</strong></div>
+                                            <div class="data-row"><span>Fusion Score</span> <strong id="inspect-fusion-conf" class="highlight-text">--</strong></div>
+                                            <div class="data-row"><span>Depth Z-Mean</span> <strong id="inspect-depth">--</strong> <span>m</span></div>
+                                        </div>
+                                        <div class="data-block">
+                                            <h4>Final Classification</h4>
+                                            <div class="class-badge" id="inspect-final-class">Building</div>
+                                            
+                                            <!-- Human in the Loop Feedback -->
+                                            <div class="hitl-feedback" style="margin-top: 15px;">
+                                                <button class="btn-secondary" style="font-size: 10px; padding: 4px 8px;" onclick="toggleFeedbackForm()"><i class="fa-solid fa-flag"></i> Flag Error</button>
+                                                <div id="feedback-form" class="hidden" style="margin-top: 8px;">
+                                                    <select id="feedback-class" class="dark-input" style="font-size: 11px; margin-bottom: 6px; padding: 4px;">
+                                                        <option value="1">Actually Building</option>
+                                                        <option value="2">Actually Road</option>
+                                                        <option value="3">Actually Vegetation</option>
+                                                        <option value="4">Actually Water</option>
+                                                        <option value="5">Actually Other</option>
+                                                        <option value="0">Actually Background</option>
+                                                    </select>
+                                                    <button class="btn-primary" style="font-size: 11px; padding: 6px;" onclick="submitFeedback()"><i class="fa-solid fa-check"></i> Send Correction</button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                    <p class="action" id="inspect-action-text"
-                                        style="margin-top: 10px; font-weight: 500;">Action: Accepted</p>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </section>
 
-                <!-- Metrics View Tab -->
-                <section id="metrics-view" class="tab-content hidden">
-                    <header class="section-header">
-                        <h2>Pipeline Metrics</h2>
-                        <p>Performance analysis for run: <strong id="metrics-run-id">demo01</strong></p>
-                    </header>
-
-                    <div class="metrics-grid">
-                        <div class="metric-card summary-card">
-                            <h3>Processing Time</h3>
-                            <p class="value" id="metric-time">0.0s</p>
-                            <p class="label">Total duration</p>
+                    <!-- Metrics / Export -->
+                    <div class="panel metrics-panel">
+                        <div class="panel-header">
+                            <h3><i class="fa-solid fa-chart-line"></i> Pipeline Telemetry</h3>
+                            <button class="btn-secondary btn-sm" onclick="exportData()"><i class="fa-solid fa-download"></i> Export OGC</button>
                         </div>
-                        <div class="metric-card summary-card">
-                            <h3>Tiles Processed</h3>
-                            <p class="value" id="metric-tiles">0</p>
-                            <p class="label">Total</p>
-                        </div>
-                        <div class="metric-card summary-card">
-                            <h3>Avg Confidence</h3>
-                            <p class="value" id="metric-conf">0%</p>
-                            <p class="label">Overall</p>
-                        </div>
-
-                        <div class="metric-card chart-card large">
-                            <h3>Class Distribution</h3>
-                            <canvas id="classDistChart"></canvas>
-                        </div>
-
-                        <div class="metric-card chart-card large">
-                            <h3>Confidence Timeline</h3>
-                            <canvas id="confTimelineChart"></canvas>
+                        <div class="panel-body">
+                            <div class="metrics-grid">
+                                <div class="metric-box">
+                                    <div class="metric-title">Tiles Processed</div>
+                                    <div class="metric-value"><span id="metric-tiles-done">0</span> <span class="metric-total">/ <span id="metric-tiles-total">0</span></span></div>
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar-fill" id="pipeline-progress" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div class="metric-box">
+                                    <div class="metric-title">GPU VRAM</div>
+                                    <div class="metric-value">9.2 <span class="metric-unit">GB</span></div>
+                                    <div class="metric-subtext">Peak utilization</div>
+                                </div>
+                                <div class="metric-box">
+                                    <div class="metric-title">Model Latency</div>
+                                    <div class="metric-value">0.22 <span class="metric-unit">s / tile</span></div>
+                                    <div class="metric-subtext">Avg inference</div>
+                                </div>
+                                <div class="metric-box">
+                                    <div class="metric-title">Objects Found</div>
+                                    <div class="metric-value highlight" id="metric-objects">0</div>
+                                    <div class="metric-subtext">Validated polygons</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </section>
 
+                </section>
             </main>
         </div>
     </div>
 
     <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Deck.GL for 3D View -->
+    <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
     <script src="js/app.js"></script>
-    <script src="js/charts.js"></script>
 </body>
-
 </html>

@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hydra-api
+  labels:
+    app: hydra-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: hydra-api
+  template:
+    metadata:
+      labels:
+        app: hydra-api
+    spec:
+      containers:
+      - name: hydra-api
+        image: your-registry.com/hydra-api:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: WORKERS
+          value: "8"
+        - name: REDIS_URL
+          value: "redis://redis-service:6379/0"
+        - name: DATABASE_URL
+          value: "postgresql://hydra:password@postgres-service:5432/hydramap"
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hydra-api-service
+spec:
+  selector:
+    app: hydra-api
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+  type: LoadBalancer

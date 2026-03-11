@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  hydra-api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - WORKERS=8
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://hydra:password@db:5432/hydramap
+      - CUDA_VISIBLE_DEVICES=0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ./datasets:/app/datasets
+      - ./output:/app/output
+      - ./models:/app/models
+    depends_on:
+      - redis
+      - db
+
+  db:
+    image: postgis/postgis:15-3.3
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=hydra
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=hydramap
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+
+  dashboard:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./visualize:/usr/share/nginx/html
+    depends_on:
+      - hydra-api
+
+volumes:
+  pgdata:

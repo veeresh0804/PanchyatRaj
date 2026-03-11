@@ -28,3 +28,11 @@ models/
 *.pt
 *.pth
 *.onnx
+hydra_test.db
+hydra.log
+output/
+logs/
+run_summary.json
+*.pth.tar
+*.ckpt
+

@@ -1,0 +1,35 @@
+# =============================================================================
+# Hydra-Map Real Data Training Configuration (CG_Training_dataSet_2)
+# =============================================================================
+
+project:
+  name: hydra-map-real-train
+  description: "Training Swin-UNet on real SVAMITVA ground truth"
+
+# --- Data Layout ---
+data:
+  raw_dir: "data/combined_real"
+  # These now point to our high-value GT extraction
+  preprocessed_dir: "data/preprocessed_ready_real_gt" 
+  annotations_dir: "data/preprocessed_ready_real_gt/masks"
+  models_dir: "models"
+  output_dir: "output/real_training"
+
+# --- Swin-UNet Training ---
+swin:
+  encoder: "swin_tiny_patch4_window7_224"
+  pretrained: true
+  num_classes: 6
+  input_size: 512
+  batch_size: 4
+  freeze_epochs: 3
+  unfreeze_epochs: 5
+  lr_freeze: 0.0001
+  lr_finetune: 0.00001
+  fold_k: 2          # Smaller K for small dataset
+  pseudo_label_threshold: 0
+  building_tile_oversampling: false # Already targeted
+
+# --- Observability ---
+observability:
+  use_wandb: false

@@ -29,6 +29,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from src.utils.io import ensure_dir, load_json, save_json
 from src.utils.geo import masks_to_polygons, compute_polygon_stats, sanitize_polygon
 
+try:
+    from hydra_api.services.db_exporter import PostGISExporter
+    POSTGIS_AVAILABLE = True
+except ImportError:
+    # Handle case where API is not in PYTHONPATH during standalone runs
+    POSTGIS_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -97,7 +104,18 @@ class Orchestrator:
             "status": "processing",
             "errors": [],
             "models_used": [],
-            "timing": {},
+        # Postprocess & Save (omitted context, just adding export hook)
+        final_polygons = self._merge_detections(diagnostics) # assuming this is where products land
+        
+        if POSTGIS_AVAILABLE and run_id != "default":
+            PostGISExporter.export_tile_results(
+                run_id=run_id,
+                tile_id=tile_id,
+                polygons=final_polygons,
+                crs=tile_meta.get('crs', 'EPSG:32644')
+            )
+
+        return diagnostics
         }
 
         # Load tile image
@@ -435,6 +453,30 @@ class Orchestrator:
             self._save_diagnostics(diag, output_dir, tid)
             tile_out_dir = ensure_dir(os.path.join(output_dir, "tiles"))
             save_json(tile_output, os.path.join(tile_out_dir, f"{tid}_output.json"))
+
+            # --- Real Data Export to PostGIS ---
+            if POSTGIS_AVAILABLE and run_id != "default":
+                try:
+                    # Prepare list for exporter
+                    poly_list = []
+                    for p in polygons:
+                        poly_list.append({
+                            'class_id': p.get('class_id', 1),
+                            'confidence': p.get('confidence', 0.8),
+                            'z_mean': depth_res.get('z_mean', 0.0),
+                            'area_sqm': p.get('area', 0.0),
+                            'geometry': p.get('geometry') # Shapely object
+                        })
+                    
+                    PostGISExporter.export_tile_results(
+                        run_id=run_id,
+                        tile_id=tid,
+                        polygons=poly_list,
+                        crs=meta.get('crs', 'EPSG:32644')
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to export results to PostGIS: {e}")
+
             all_diagnostics.append(diag)
             
         logger.info(f"Batched {batch_size} tiles in {time.time() - t_start:.2f}s")

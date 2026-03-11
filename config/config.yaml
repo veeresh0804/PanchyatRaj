@@ -24,7 +24,7 @@ preprocess:
   v_local_thresh: 6
   local_window_size: 50
   tile_sizes: [512, 640]
-  stride: 256
+  stride: 448             # Smart Tile Boundary Handling (512 - 64 overlap)
   output_format: "png"    # png or npy
 
 # --- Swin-UNet ---
@@ -73,6 +73,7 @@ geosam:
 
 # --- Depth ---
 depth:
+  enabled: true
   source: "auto"           # auto | las | dsm_dtm | none
   use_depth_pro: true      # Apple DepthPro enabled (weights in checkpoints/depth_pro.pt)
   dsm_suffix: "_dsm.tif"
